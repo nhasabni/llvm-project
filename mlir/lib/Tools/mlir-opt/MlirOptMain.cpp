@@ -31,6 +31,7 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/FileUtilities.h"
+#include "mlir/Support/SystemDesc.h"
 #include "mlir/Support/Timing.h"
 #include "mlir/Support/ToolUtilities.h"
 #include "mlir/Tools/ParseUtilities.h"
@@ -159,6 +160,14 @@ struct MlirOptMainConfigCLOptions : public MlirOptMainConfig {
                 "Generate an mlir reproducer at the provided filename"
                 " (no crash required)"),
             cl::location(generateReproducerFileFlag), cl::init(""),
+            cl::value_desc("filename"));
+
+    static cl::opt<std::string, /*ExternalStorage=*/true>
+        systemDescriptionFile(
+            "mlir-system-description-file",
+            llvm::cl::desc(
+                "Name of the system description file"),
+            cl::location(systemDescriptionFileFlag), cl::init(""),
             cl::value_desc("filename"));
 
     /// Set the callback to load a pass plugin.
@@ -378,6 +387,15 @@ performActions(raw_ostream &os,
     return failure();
 
   context->enableMultithreading(wasThreadingEnabled);
+
+  if (!config.getSystemDescriptionFileName().empty()) {
+    // If there is an error in file IO or parse error, we should report
+    // the error and fallback to default values.
+    if (failed(SystemDesc::readSystemDescFromJSONFile(
+                config.getSystemDescriptionFileName()))) {
+      return failure();
+    }
+  }
 
   // Prepare the pass manager, applying command-line and reproducer options.
   PassManager pm(op.get()->getName(), PassManager::Nesting::Implicit);
