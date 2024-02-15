@@ -18,6 +18,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/JSON.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Support/FileUtilities.h"
 
@@ -80,6 +81,20 @@ class DeviceDesc {
     }
     bool operator != (const mlir::DeviceDesc& rhs) const { return !(*this == rhs); }
 
+    /// Type converters
+    static DeviceID strToDeviceID(const std::string& id_str) {
+      llvm::Expected<int64_t> id = llvm::json::parse<int64_t>(id_str);
+      if (!id)
+        llvm::report_fatal_error("Value of \"ID\" is not int");
+      return static_cast<DeviceID>(id.get());
+    }
+    static DeviceType strToDeviceType(const std::string& type_str) {
+      if (type_str == "CPU") return DeviceType::CPU;
+      else if (type_str == "GPU") return DeviceType::GPU;
+      else if (type_str == "SPECIAL") return DeviceType::SPECIAL;
+      llvm::report_fatal_error("Value of \"Type\" is not CPU, GPU, or SPECIAL");
+    }
+
     /// Set description
     DeviceDesc& setDescription(std::string desc) { description = desc; return *this;}
     /// Set property
@@ -99,6 +114,26 @@ class DeviceDesc {
       }
       return *this;
     }
+    // We provide convenience interface to handle int/float value as string
+    DeviceDesc& setProperty(llvm::StringRef name, const std::string& json_value) {
+      // int64_t because llvm::json has int64_t support (not int)
+      llvm::Expected<int64_t> iv = llvm::json::parse<int64_t>(json_value);
+      if (iv) {
+        *this = this->setProperty(name, static_cast<int>(iv.get()));
+        return *this;
+      }
+
+      // Int type failed, try float now.
+      // double because llvm::json has double support (not float)
+      llvm::Expected<double> dv = llvm::json::parse<double>(json_value);
+      if (dv) {
+        *this = this->setProperty(name, static_cast<float>(dv.get()));
+        return *this;
+      }
+
+      llvm::report_fatal_error("Neither int/float value in Device Description: key" + name);
+    }
+
     /// Get ID
     DeviceID getID() const { return ID; }
     /// Get device type
@@ -134,6 +169,10 @@ class DeviceDesc {
         deviceProperties,
         [](const DevicePropertiesMapTy::value_type &item) -> llvm::StringRef { return item.first; });
     }
+
+    /// We use a list of key-value pairs to represent a system description in JSON.
+    using DeviceDescJSONTy = std::map<std::string, std::string>;
+    static DeviceDesc parseDeviceDescFromJSON(const DeviceDescJSONTy& device_desc);
 
   private:
     /// Unique device ID for every device
