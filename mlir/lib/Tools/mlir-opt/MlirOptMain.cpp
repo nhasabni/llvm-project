@@ -391,10 +391,14 @@ performActions(raw_ostream &os,
   if (!config.getSystemDescriptionFileName().empty()) {
     // If there is an error in file IO or parse error, we should report
     // the error and fallback to default values.
-    if (failed(SystemDesc::readSystemDescFromJSONFile(
-                config.getSystemDescriptionFileName()))) {
+    if (failed(context->getSystemDesc()
+                .readSystemDescFromJSONFile(
+                  config.getSystemDescriptionFileName()))) {
       return failure();
     }
+  } else {
+    DefaultCPUDeviceDesc default_cpu_device_desc;
+    default_cpu_device_desc.registerDeviceDesc(context);
   }
 
   // Prepare the pass manager, applying command-line and reproducer options.

@@ -71,7 +71,7 @@ LogicalResult SystemDesc::readSystemDescFromJSONFile(llvm::StringRef filename) {
   }
   for (auto device_desc_in_json : system_desc_in_json) {
     auto device_desc = DeviceDesc::parseDeviceDescFromJSON(device_desc_in_json);
-    SystemDesc::getGlobalSystemDesc()->addDeviceDesc(device_desc);
+    this->addDeviceDesc(device_desc);
   }
 
   #if 0
@@ -86,6 +86,6 @@ LogicalResult SystemDesc::readSystemDescFromJSONFile(llvm::StringRef filename) {
 }
 
 int SystemDesc::getCPUL1CacheSizeInBytes(DeviceDesc::DeviceID deviceID) {
-  return SystemDesc::getGlobalSystemDesc()->getDeviceDesc(deviceID)
-                    .getPropertyValueAsInt("L1_CACHE_SIZE_IN_BYTES");
+  return this->getDeviceDesc(deviceID)
+              .getPropertyValueAsInt("L1_CACHE_SIZE_IN_BYTES");
 }

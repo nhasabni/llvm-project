@@ -19,6 +19,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/JSON.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Support/FileUtilities.h"
 
@@ -190,15 +191,11 @@ class DeviceDesc {
 
 class SystemDesc {
   public:
-    /// Singleton class - we want single system descriptor per program invocation
-    static SystemDesc* getGlobalSystemDesc() {
-      static SystemDesc gDesc;
-      return &gDesc;
-    }
+    SystemDesc() = default;
 
     /// Read and parse system description from JSON file
-    static LogicalResult readSystemDescFromJSONFile(llvm::StringRef filename);
-    static void writeSystemDescToJSONFile(llvm::StringRef filename);
+    LogicalResult readSystemDescFromJSONFile(llvm::StringRef filename);
+    void writeSystemDescToJSONFile(llvm::StringRef filename);
 
     /// Insert a new device description
     SystemDesc& addDeviceDesc(const DeviceDesc& desc) {
@@ -207,7 +204,7 @@ class SystemDesc {
         llvm::report_fatal_error("Duplicate device description for ID:" +
           llvm::StringRef(std::to_string(desc.getID())));
       }
-      return *getGlobalSystemDesc();
+      return *this;
     }
     /// Get a device description
     const DeviceDesc& getDeviceDesc(DeviceDesc::DeviceID deviceID) {
@@ -228,16 +225,53 @@ class SystemDesc {
     static uint32_t getNumGPUDevices() { return 0; }
 
     // Device specific interface
-    static int getCPUL1CacheSizeInBytes(DeviceDesc::DeviceID deviceID);
+    int getCPUL1CacheSizeInBytes(DeviceDesc::DeviceID deviceID);
 
   private:
-    SystemDesc() {}
     SystemDesc(const SystemDesc &) = delete;
     void operator=(const SystemDesc&) = delete;
 
   private:
     /// Map to store all the device descriptions
     DeviceDescsMapTy deviceDescs;
+};
+
+// An abstract class that represent device description for an abstract base device
+class DefaultBaseDeviceDesc {
+ public:
+  virtual ~DefaultBaseDeviceDesc() {}
+  virtual void registerDeviceDesc(MLIRContext *context) const = 0;
+
+  /// Set of common parameters of system description
+  virtual void setL1CacheSizeInBytes() = 0;
+  virtual size_t getL1CacheSizeInBytes() = 0;
+};
+
+// Class that represent device description for a typical CPU device
+class DefaultCPUDeviceDesc : public DefaultBaseDeviceDesc {
+ public:
+  // We use default ID of 0 because we are expecting to have only one device so far.
+  // Not heterogeneous setup.
+  DefaultCPUDeviceDesc() : cpu_device_desc(DeviceDesc(/* id */ 0, DeviceDesc::CPU)) {
+    // Register all system properties
+    this->setL1CacheSizeInBytes();
+  }
+
+  ~DefaultCPUDeviceDesc() {}
+  
+  void registerDeviceDesc(MLIRContext *context) const override {
+    context->getSystemDesc().addDeviceDesc(cpu_device_desc);
+  }
+
+  void setL1CacheSizeInBytes() override {
+    cpu_device_desc.setProperty("L1_CACHE_SIZE_IN_BYTES", 8192);
+  }
+  size_t getL1CacheSizeInBytes() override {
+    return (size_t) cpu_device_desc.getPropertyValueAsInt("L1_CACHE_SIZE_IN_BYTES");
+  }
+
+ private:
+  DeviceDesc cpu_device_desc;
 };
 
 } // namespace mlir
