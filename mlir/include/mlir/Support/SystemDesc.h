@@ -175,6 +175,44 @@ class DeviceDesc {
     using DeviceDescJSONTy = std::map<std::string, std::string>;
     static DeviceDesc parseDeviceDescFromJSON(const DeviceDescJSONTy& device_desc);
 
+    // -----------------------------------------------------------------------
+    //          CPU specific methods
+    // -----------------------------------------------------------------------
+    static constexpr llvm::StringRef getCPUL1CacheSizeInBytesKeyName() {
+      return "L1_CACHE_SIZE_IN_BYTES";
+    }
+    static constexpr llvm::StringRef getConvAndMatMulBlockingFactorKeyName() {
+      return "CONV_AND_MATMUL_BLOCKING_FACTOR";
+    }
+    static constexpr llvm::StringRef getMatMulTileSizeInBytesKeyName() {
+      return "MATMUL_TILE_SIZE_IN_BYTES";
+    }
+
+    size_t getL1CacheSizeInBytes() const {
+      return (size_t) this->getPropertyValueAsInt(
+                        DeviceDesc::getCPUL1CacheSizeInBytesKeyName());
+    }
+    void setL1CacheSizeInBytes(size_t value) {
+      // Temporarily use int override until we support size_t
+      this->setProperty(DeviceDesc::getCPUL1CacheSizeInBytesKeyName(), (int) value);
+    }
+    size_t getConvAndMatMulBlockingFactor() const {
+      return (size_t) this->getPropertyValueAsInt(
+                        DeviceDesc::getConvAndMatMulBlockingFactorKeyName());
+    }
+    void setConvAndMatMulBlockingFactor(size_t value) {
+      // Temporarily use int override until we support size_t
+      this->setProperty(DeviceDesc::getConvAndMatMulBlockingFactorKeyName(), (int) value);
+    }
+    size_t getMatMulTileSizeInBytes() const {
+      return (size_t) this->getPropertyValueAsInt(
+                        DeviceDesc::getMatMulTileSizeInBytesKeyName());
+    }
+    void setMatMulTileSizeInBytes(size_t value) {
+      // Temporarily use int override until we support size_t
+      this->setProperty(DeviceDesc::getMatMulTileSizeInBytesKeyName(), (int) value);
+    }
+
   private:
     /// Unique device ID for every device
     DeviceID ID;
@@ -224,9 +262,6 @@ class SystemDesc {
     static uint32_t getNumCPUDevices() { return 0; }
     static uint32_t getNumGPUDevices() { return 0; }
 
-    // Device specific interface
-    int getCPUL1CacheSizeInBytes(DeviceDesc::DeviceID deviceID);
-
   private:
     SystemDesc(const SystemDesc &) = delete;
     void operator=(const SystemDesc&) = delete;
@@ -237,14 +272,25 @@ class SystemDesc {
 };
 
 // An abstract class that represent device description for an abstract base device
+//
+// This class specifies minimum set of device properties that must be specified by
+// the default device descriptor that will be used in case a user does not specify
+// its own properties for the device.
 class DefaultBaseDeviceDesc {
  public:
   virtual ~DefaultBaseDeviceDesc() {}
   virtual void registerDeviceDesc(MLIRContext *context) const = 0;
 
+  /// -----------------------------------------------------------------------
   /// Set of common parameters of system description
+  /// -----------------------------------------------------------------------
+  // These methods allow to provide default values of these properties.
   virtual void setL1CacheSizeInBytes() = 0;
-  virtual size_t getL1CacheSizeInBytes() = 0;
+
+  /// Set of common questions asked by various passes
+  // Blocking factor and tile size are typically used by tile/block passes.
+  virtual void setConvAndMatMulBlockingFactor() = 0;
+  virtual void setMatMulTileSize() = 0;
 };
 
 // Class that represent device description for a typical CPU device
@@ -255,6 +301,8 @@ class DefaultCPUDeviceDesc : public DefaultBaseDeviceDesc {
   DefaultCPUDeviceDesc() : cpu_device_desc(DeviceDesc(/* id */ 0, DeviceDesc::CPU)) {
     // Register all system properties
     this->setL1CacheSizeInBytes();
+    this->setConvAndMatMulBlockingFactor();
+    this->setMatMulTileSize();
   }
 
   ~DefaultCPUDeviceDesc() {}
@@ -263,11 +311,16 @@ class DefaultCPUDeviceDesc : public DefaultBaseDeviceDesc {
     context->getSystemDesc().addDeviceDesc(cpu_device_desc);
   }
 
+  // -------------------------------------------------------------------------
+
   void setL1CacheSizeInBytes() override {
-    cpu_device_desc.setProperty("L1_CACHE_SIZE_IN_BYTES", 8192);
+    cpu_device_desc.setL1CacheSizeInBytes(8192);
   }
-  size_t getL1CacheSizeInBytes() override {
-    return (size_t) cpu_device_desc.getPropertyValueAsInt("L1_CACHE_SIZE_IN_BYTES");
+  void setConvAndMatMulBlockingFactor() override {
+    cpu_device_desc.setConvAndMatMulBlockingFactor(32);
+  }
+  void setMatMulTileSize() override {
+    cpu_device_desc.setMatMulTileSizeInBytes(32);
   }
 
  private:
@@ -276,4 +329,3 @@ class DefaultCPUDeviceDesc : public DefaultBaseDeviceDesc {
 
 } // namespace mlir
 #endif // MLIR_SUPPORT_SYSTEMDESC_H
-

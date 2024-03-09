@@ -74,18 +74,5 @@ LogicalResult SystemDesc::readSystemDescFromJSONFile(llvm::StringRef filename) {
     this->addDeviceDesc(device_desc);
   }
 
-  #if 0
-  // set entries
-  auto desc = mlir::DeviceDesc(0, mlir::DeviceDesc::CPU)
-                    .setDescription("Intel Xeon 8480")
-                    .setProperty("L1_CACHE_SIZE_IN_BYTES", 8192);
-  SystemDesc::getGlobalSystemDesc()->addDeviceDesc(desc);
-  #endif
-
   return success();
-}
-
-int SystemDesc::getCPUL1CacheSizeInBytes(DeviceDesc::DeviceID deviceID) {
-  return this->getDeviceDesc(deviceID)
-              .getPropertyValueAsInt("L1_CACHE_SIZE_IN_BYTES");
 }
