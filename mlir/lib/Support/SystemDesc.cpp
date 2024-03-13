@@ -1,4 +1,5 @@
-//===- HardwareConfig.cpp - Hardware configuration ----------------------------===//
+//===- HardwareConfig.cpp - Hardware configuration
+//----------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,19 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Support/SystemDesc.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "mlir/Support/SystemDesc.h"
 
 using namespace llvm;
 using namespace mlir;
 
-//ManagedStatic<SystemDesc> systemDesc;
+// ManagedStatic<SystemDesc> systemDesc;
 
 DeviceDesc DeviceDesc::parseDeviceDescFromJSON(
-    const DeviceDescJSONTy& device_desc_in_json) {
+    const DeviceDescJSONTy &device_desc_in_json) {
   // ID and Type are mandatory fields.
   auto iter = device_desc_in_json.find("ID");
   if (iter == device_desc_in_json.end())
@@ -36,7 +37,7 @@ DeviceDesc DeviceDesc::parseDeviceDescFromJSON(
 
   // Now process optional fields: description and properties
   DeviceDesc device_desc(id, type);
-  for (const auto& property : device_desc_in_json) {
+  for (const auto &property : device_desc_in_json) {
     // skip ID and Type as we have already processed those mandatory fields.
     if (property.first != "ID" && property.first != "Type") {
       if (property.first == "Description")
@@ -48,10 +49,10 @@ DeviceDesc DeviceDesc::parseDeviceDescFromJSON(
   return device_desc;
 }
 
-
 LogicalResult SystemDesc::readSystemDescFromJSONFile(llvm::StringRef filename) {
   std::string errorMessage;
-  std::unique_ptr<llvm::MemoryBuffer> file = openInputFile(filename, &errorMessage);
+  std::unique_ptr<llvm::MemoryBuffer> file =
+      openInputFile(filename, &errorMessage);
   if (!file) {
     llvm::errs() << errorMessage << "\n";
     return failure();

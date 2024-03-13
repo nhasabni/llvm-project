@@ -162,13 +162,11 @@ struct MlirOptMainConfigCLOptions : public MlirOptMainConfig {
             cl::location(generateReproducerFileFlag), cl::init(""),
             cl::value_desc("filename"));
 
-    static cl::opt<std::string, /*ExternalStorage=*/true>
-        systemDescriptionFile(
-            "mlir-system-description-file",
-            llvm::cl::desc(
-                "Name of the system description file"),
-            cl::location(systemDescriptionFileFlag), cl::init(""),
-            cl::value_desc("filename"));
+    static cl::opt<std::string, /*ExternalStorage=*/true> systemDescriptionFile(
+        "mlir-system-description-file",
+        llvm::cl::desc("Name of the system description file"),
+        cl::location(systemDescriptionFileFlag), cl::init(""),
+        cl::value_desc("filename"));
 
     /// Set the callback to load a pass plugin.
     passPlugins.setCallback([&](const std::string &pluginPath) {
@@ -391,14 +389,16 @@ performActions(raw_ostream &os,
   if (!config.getSystemDescriptionFileName().empty()) {
     // If there is an error in file IO or parse error, we should report
     // the error and fallback to default values.
-    if (failed(context->getSystemDesc()
-                .readSystemDescFromJSONFile(
-                  config.getSystemDescriptionFileName()))) {
+    if (failed(context->getSystemDesc().readSystemDescFromJSONFile(
+            config.getSystemDescriptionFileName()))) {
       return failure();
     }
   } else {
     DefaultCPUDeviceDesc default_cpu_device_desc;
     default_cpu_device_desc.registerDeviceDesc(context);
+
+    DefaultGPUDeviceDesc default_gpu_device_desc;
+    default_gpu_device_desc.registerDeviceDesc(context);
   }
 
   // Prepare the pass manager, applying command-line and reproducer options.
